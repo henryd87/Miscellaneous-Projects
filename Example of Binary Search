@@ -15,4 +15,6 @@ const binary = (val, arr)=>{
     }
     return -1
 }
+const values=[-9,-2,3,5,8,9,12,18,65,89]
+console.log(binary(3, values))
 // JavaScript
