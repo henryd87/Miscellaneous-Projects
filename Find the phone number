@@ -1,4 +1,11 @@
 //Written in Python
+def findThePhoneNumber():
+    message=input("what's the statement: ")
+    print("\n")
+    for i in range(len(message)):
+        chunk=message[i:i+12]
+        if isAPhoneNumber(chunk):
+            print('phone number found '+chunk)
 def isAPhoneNumber(text):
     if len(text)!=12:
         return False
@@ -16,5 +23,6 @@ def isAPhoneNumber(text):
         if not text[i].isdecimal():
             return False
     return True
-print('is 214-789-0987 a phone number?')
-print(isAPhoneNumber('214-789-0987'))
+
+
+findThePhoneNumber()
