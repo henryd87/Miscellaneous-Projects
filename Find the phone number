@@ -4,8 +4,13 @@ def findThePhoneNumber():
     print("\n")
     for i in range(len(message)):
         chunk=message[i:i+12]
-        if isAPhoneNumber(chunk):
+        if isAPhoneNumber(chunk)==True:
             print('phone number found '+chunk)
+            return
+        if isAPhoneNumber(chunk)==False:
+            print('no phone number was found')
+            return
+        
 def isAPhoneNumber(text):
     if len(text)!=12:
         return False
