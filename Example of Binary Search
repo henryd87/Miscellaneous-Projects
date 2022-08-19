@@ -1,0 +1,18 @@
+const binary = (val, arr)=>{
+    let lower=0;
+    let upper=arr.length-1;
+    while(lower<=upper){
+        console.log("try");
+        const middle=Math.floor((lower+upper)/2);
+        if (val===arr[middle]){
+            return console.log(val+" is at index "+middle);
+        }
+        if (val< arr[middle]){
+            upper=middle-1;
+        } else{
+            lower=middle+1;
+        }
+    }
+    return -1
+}
+// JavaScript
