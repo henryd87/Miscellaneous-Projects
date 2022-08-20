@@ -1,0 +1,27 @@
+function mergeSort(arr){
+    if (arr.length<2){
+        return arr;
+    }
+    const middleIndex=Math.floor(arr.length/2);
+    const leftArr=arr.slice(0,middleIndex);
+    const rightArr=arr.slice(middleIndex,arr.length);
+    //arr.slice slices up to n but not inclduing n
+    return merge(mergeSort(leftArr),mergeSort(rightArr))
+}
+function merge(leftArr, rightArr){
+    let resultArr=[];
+    let leftIndex=0;
+    let rightIndex=0;
+    while(leftIndex< leftArr.length && rightIndex<rightArr.length){
+        if(leftArr[leftIndex]<rightArr[rightIndex]){
+            resultArr.push(leftArr[leftIndex])
+            leftIndex+=1
+        } else{
+            resultArr.push(rightArr[rightIndex])
+            rightIndex+=1
+        }
+    }
+    return resultArr.concat(leftArr.slice(leftIndex)).concat(rightArr.slice(rightIndex))
+}
+let arr=[2,45,-4,6,78,65,67,5,9]
+console.log(mergeSort(arr))
