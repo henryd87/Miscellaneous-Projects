@@ -1,0 +1,11 @@
+let start
+let end
+let resultArr=[]
+function rangee(start,end){
+    for (start;start<end+1;start++){
+        resultArr.push(start);
+        
+    }
+    return resultArr
+}
+console.log(rangee(start,end))
