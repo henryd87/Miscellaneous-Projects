@@ -1,0 +1,69 @@
+import random
+rooms={
+    'Foyer':{'South':'Living Room','East':'Kitchen','West':'Pool'},
+    'Pool':{'South':'Outside Space','East':'Foyer'},
+    'Kitchen':{'South':'Dining Room','West':'Foyer'},
+    'Outside Space':{'South':'Bedroom 1','East':'Living Room','North':'Pool'},
+    'Living Room':{'South':'Bathroom','East':'Dining Room','West':'Outside Space', 'North':'Foyer'},
+    'Dining Room':{'South':'Bedroom 2','West':'Living Room','North':'Kitchen'},
+    'Bedroom 2':{'West':'Bathroom','North':'Dining Room'},
+    'Bedroom 1':{'East':'Bathroom','North':'Outside Space'},
+    'Bathroom':{'West':'Bedroom 1','East':'Bedroom 2','North':'Living Room'}
+}
+roomJewels={
+    'Foyer':'Diamond Tiara',
+    'Pool':'Purple Garnet Choker',
+    'Kitchen':'Coral Necklace',
+    'Outside Space':'Aquamarine earrings',
+    'Living Room':'Turquoise charm',
+    'Dining Room':'Sapphire bracelet',
+    'Bedroom 2':'Emerald ring',
+    'Bedroom 1':'Ruby Brooch',
+    'Bathroom':'Pearl Necklace'
+}
+
+roomLocation='Foyer'
+print('Welcome to the game, type anything to enter, exit to quit.')
+direction=input()
+inventory=['Diamond Tiara']
+print('Welcome, you are in the '+roomLocation)
+#--------
+listOfRooms=list(rooms)
+startRoom=random.randint(1,len(listOfRooms)-1)
+rRoom=listOfRooms[startRoom]
+        
+#----------
+
+while direction!='Exit' or len(inventory)!=9:
+    if len(inventory)>=9:
+            print('you won!')
+            break
+    print('the killer is in the '+rRoom+' they can go '+str(rooms[rRoom]))
+    if rRoom==roomLocation:
+                print('you lost')
+                break
+    print('Here is your inventory '+str(inventory)+' you need '+str(9-len(inventory))+' more jewels!')
+    print('you can only move '+str(rooms[roomLocation]))
+    print('where do you want to go? ')
+    direction=input().strip().capitalize()
+    if rRoom!=roomLocation:
+            choices=(rooms[rRoom].keys())
+            #print(list(choices))
+            newChoices=list(choices)
+            movement=random.randint(0,len(list(choices))-1)
+            robotDirection=str(newChoices[movement])
+            room=rooms[rRoom].get(robotDirection)
+            rRoom=room
+    if direction=='Exit':
+        print('goodbye, you are no fun anyway')
+        break
+    if direction not in rooms[roomLocation].keys():
+        print('YOU CANNOT GO THAT WAY!')
+    else:
+        roomLocation=rooms[roomLocation].get(direction)
+        newJewel=roomJewels.get(roomLocation)
+        print('You have went '+direction+' to the '+roomLocation)
+        if newJewel in inventory:
+            print('you already have the '+newJewel+'! Move on!')
+        else:
+            inventory.append(newJewel)
