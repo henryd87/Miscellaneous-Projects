@@ -1,0 +1,61 @@
+#include <Arduino.h>
+#include <WiFi.h>
+#include <esp_wifi.h>
+#include <esp_now.h>
+
+// Must match sender struct exactly
+typedef struct {
+  float co2;
+  float temperature;
+  float humidity;
+} SensorData;
+
+SensorData receivedData;
+volatile bool newDataAvailable = false;
+
+void onDataReceived(const esp_now_recv_info_t *recvInfo,
+                    const uint8_t *data,
+                    int dataLen)
+{
+  if (dataLen != sizeof(SensorData)) {
+    Serial.printf("Unexpected packet size: %d (expected %d)\n",
+                  dataLen, (int)sizeof(SensorData));
+    return;
+  }
+  memcpy(&receivedData, data, sizeof(SensorData));
+  newDataAvailable = true;
+}
+
+void setup() {
+  Serial.begin(115200);
+  while (!Serial && millis() < 3000);
+
+  Serial.println("ESP32-S3 ESP-NOW Receiver starting...");
+
+  WiFi.mode(WIFI_STA);
+  esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE); // Must match sender's channel
+  WiFi.disconnect();
+  delay(100);
+
+  Serial.print("S3 MAC: ");
+  Serial.println(WiFi.macAddress()); // Should print C8:2D:41:D4:DB:1C
+
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("ESP-NOW init failed!");
+    while (true) delay(10);
+  }
+
+  esp_now_register_recv_cb(onDataReceived);
+  Serial.println("Waiting for data from WROOM (F8:D3:FB:18:2E:C8)...");
+}
+
+void loop() {
+  if (newDataAvailable) {
+    newDataAvailable = false;
+
+    Serial.println("──────────────────────────");
+    Serial.printf("CO2: %.1f ppm\n", receivedData.co2);
+    Serial.println("──────────────────────────");
+  }
+  delay(10);
+}
