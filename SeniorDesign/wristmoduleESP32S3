@@ -2,8 +2,19 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <esp_now.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ILI9341.h>
+#include <SPI.h>
 
-// Must match sender struct exactly
+#define TFT_CS   10
+#define TFT_DC    8
+#define TFT_RST   9
+#define TFT_MOSI 11
+#define TFT_SCLK 12
+#define TFT_MISO 13
+
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
+
 typedef struct {
   float co2;
   float temperature;
@@ -17,28 +28,75 @@ void onDataReceived(const esp_now_recv_info_t *recvInfo,
                     const uint8_t *data,
                     int dataLen)
 {
-  if (dataLen != sizeof(SensorData)) {
-    Serial.printf("Unexpected packet size: %d (expected %d)\n",
-                  dataLen, (int)sizeof(SensorData));
-    return;
-  }
+  if (dataLen != sizeof(SensorData)) return;
   memcpy(&receivedData, data, sizeof(SensorData));
   newDataAvailable = true;
 }
 
+void drawScreen(float co2) {
+  // Clear old value area only (avoids full screen flicker)
+  tft.fillRect(0, 60, 320, 80, ILI9341_BLACK);
+
+  // CO2 label
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(10, 10);
+  tft.print("CO2 Level:");
+
+  // CO2 value — big text
+  tft.setTextSize(5);
+  tft.setCursor(10, 70);
+
+  if (co2 > 1200) {
+    tft.setTextColor(ILI9341_RED);
+  } else {
+    tft.setTextColor(ILI9341_GREEN);
+  }
+  tft.printf("%.0f", co2);
+
+  // ppm label
+  tft.setTextSize(2);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setCursor(10, 150);
+  tft.print("ppm");
+
+  // Warning banner
+  if (co2 > 1200) {
+    tft.fillRect(0, 180, 320, 60, ILI9341_RED);
+    tft.setTextColor(ILI9341_WHITE);
+    tft.setTextSize(2);
+    tft.setCursor(40, 205);
+    tft.print("WARNING: CO2 HIGH!");
+  } else {
+    tft.fillRect(0, 180, 320, 60, ILI9341_BLACK);
+    tft.setTextColor(ILI9341_GREEN);
+    tft.setTextSize(2);
+    tft.setCursor(40, 205);
+    tft.print("CO2 Level Safe");
+  }
+}
+
 void setup() {
   Serial.begin(115200);
-  while (!Serial && millis() < 3000);
+  delay(500);
 
-  Serial.println("ESP32-S3 ESP-NOW Receiver starting...");
+  // TFT setup
+  tft.begin();
+  tft.setRotation(1);
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(10, 10);
+  tft.print("Waiting for data...");
 
+  // ESP-NOW setup
   WiFi.mode(WIFI_STA);
-  esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE); // Must match sender's channel
+  esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
   WiFi.disconnect();
   delay(100);
 
   Serial.print("S3 MAC: ");
-  Serial.println(WiFi.macAddress()); // Should print C8:2D:41:D4:DB:1C
+  Serial.println(WiFi.macAddress());
 
   if (esp_now_init() != ESP_OK) {
     Serial.println("ESP-NOW init failed!");
@@ -46,16 +104,15 @@ void setup() {
   }
 
   esp_now_register_recv_cb(onDataReceived);
-  Serial.println("Waiting for data from WROOM (F8:D3:FB:18:2E:C8)...");
+  Serial.println("Ready. Waiting for CO2 data...");
 }
 
 void loop() {
   if (newDataAvailable) {
     newDataAvailable = false;
 
-    Serial.println("──────────────────────────");
     Serial.printf("CO2: %.1f ppm\n", receivedData.co2);
-    Serial.println("──────────────────────────");
+    drawScreen(receivedData.co2);
   }
   delay(10);
 }
