@@ -1,0 +1,30 @@
+void setup() {
+  Serial.begin(115200);
+  Serial0.begin(115200); // Or Serial1 depending on your wiring
+  delay(1000);
+  Serial.println("Nano Sniffer Mode Active...");
+}
+
+void loop() {
+  if (Serial0.available()) {
+    String incoming = Serial0.readStringUntil('\n'); // Read the full line
+    
+    // Check if the string actually starts with the +RCV header
+    if (incoming.startsWith("+RCV=")) {
+      
+      // We want to skip the first two commas to get to the data
+      int firstComma = incoming.indexOf(',');
+      int secondComma = incoming.indexOf(',', firstComma + 1);
+      int thirdComma = incoming.indexOf(',', secondComma + 1);
+      
+      // The data is between the 2nd and 3rd commas
+      String sensorValue = incoming.substring(secondComma + 1, thirdComma);
+      
+      // Convert to float if you need to do math with it
+      float co2 = sensorValue.toFloat();
+      
+      Serial.print("Filtered CO2 Value: ");
+      Serial.println(co2); 
+    }
+  }
+}
