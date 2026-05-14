@@ -1,0 +1,282 @@
+#include <Arduino.h>
+#include <WiFi.h>
+#include <WebServer.h>
+
+// ─────────────────────────────
+// WiFi credentials
+// ─────────────────────────────
+const char* ssid = "HenIphone";
+const char* password = "ilivecarlyshay";
+
+// ─────────────────────────────
+// Web server
+// ─────────────────────────────
+WebServer server(80);
+
+// ─────────────────────────────
+// UART for RYLR998
+// ─────────────────────────────
+HardwareSerial LoRaSerial(1);
+
+// Nano ESP32 pins
+#define LORA_RX D2
+#define LORA_TX D3
+
+// ─────────────────────────────
+// Variables for website
+// ─────────────────────────────
+String latestPayload = "--";
+String latestRSSI = "--";
+String latestSNR = "--";
+String latestSender = "--";
+
+// ─────────────────────────────
+// Send AT command
+// ─────────────────────────────
+void sendAT(String cmd) {
+
+  LoRaSerial.println(cmd);
+
+  delay(300);
+
+  while (LoRaSerial.available()) {
+    Serial.write(LoRaSerial.read());
+  }
+}
+
+// ─────────────────────────────
+// Webpage
+// ─────────────────────────────
+void handleRoot() {
+
+  // Alarm if SNR > 1500
+  bool alarm = latestSNR.toFloat() > 800;
+
+  String html = R"rawliteral(
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta http-equiv="refresh" content="2">
+
+<title>LoRa Receiver</title>
+
+<style>
+
+body {
+  color: white;
+  font-family: Arial;
+  text-align: center;
+  padding-top: 40px;
+  margin: 0;
+}
+  
+.card {
+  background: #1e1e1e;
+  width: 350px;
+  margin: auto;
+  padding: 25px;
+  border-radius: 15px;
+}
+
+h1 {
+  color: #44ff88;
+}
+
+.value {
+  font-size: 2rem;
+  margin: 10px;
+}
+
+.warning {
+  background: red;
+  color: white;
+  font-size: 2rem;
+  padding: 20px;
+  margin: 20px auto;
+  width: 350px;
+  border-radius: 15px;
+  font-weight: bold;
+  animation: flash 0.5s infinite;
+}
+
+@keyframes flash {
+  0%   { background: #111; }
+  50%  { background: red; }
+  100% { background: #111; }
+}
+
+.flashBackground {
+  animation: flash 0.5s infinite;
+}
+
+</style>
+
+</head>
+
+<body class=")rawliteral";
+
+  html += alarm ? "flashBackground" : "";
+
+  html += R"rawliteral(">
+
+<div class="card">
+
+<h1>LoRa Receiver</h1>
+
+
+
+
+
+
+<p>CO2: </p>
+<div class="value">)rawliteral";
+
+  html += latestSNR;
+
+  html += R"rawliteral( dB</div>
+
+</div>
+)rawliteral";
+
+  // Warning div if alarm active
+  if (alarm) {
+
+    html += R"rawliteral(
+
+<div class="warning">
+ HIGH CO2 DETECTED 
+</div>
+
+)rawliteral";
+  }
+
+  html += R"rawliteral(
+
+</body>
+</html>
+
+)rawliteral";
+
+  server.send(200, "text/html", html);
+}
+
+// ─────────────────────────────
+// Setup
+// ─────────────────────────────
+void setup() {
+
+  Serial.begin(115200);
+
+  // Start LoRa UART
+  LoRaSerial.begin(115200, SERIAL_8N1, LORA_RX, LORA_TX);
+
+  delay(2000);
+
+  Serial.println("Starting RYLR998 Receiver...");
+
+  // Test module
+  sendAT("AT");
+
+  // Receiver address
+  sendAT("AT+ADDRESS=2");
+
+  // Must match transmitter
+  sendAT("AT+NETWORKID=5");
+
+  // Must match transmitter
+  sendAT("AT+BAND=915000000");
+
+  // Optional power
+  sendAT("AT+CRFOP=22");
+
+  Serial.println("LoRa Ready");
+
+  // Connect WiFi
+  WiFi.begin(ssid, password);
+
+  Serial.print("Connecting to WiFi");
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("WiFi Connected!");
+
+  Serial.print("Open website at: ");
+  Serial.println(WiFi.localIP());
+
+  // Start web server
+  server.on("/", handleRoot);
+
+  server.begin();
+
+  Serial.println("Web server started");
+}
+
+// ─────────────────────────────
+// Loop
+// ─────────────────────────────
+void loop() {
+
+  server.handleClient();
+
+  // Check LoRa packets
+  if (LoRaSerial.available()) {
+
+    String incoming = LoRaSerial.readString();
+
+    incoming.trim();
+
+    Serial.println("Received:");
+    Serial.println(incoming);
+
+    // Example:
+    // +RCV=1,5,HELLO,-45,20
+
+    if (incoming.startsWith("+RCV=")) {
+
+      int firstComma  = incoming.indexOf(',');
+      int secondComma = incoming.indexOf(',', firstComma + 1);
+      int thirdComma  = incoming.indexOf(',', secondComma + 1);
+      int fourthComma = incoming.indexOf(',', thirdComma + 1);
+      int fifthComma  = incoming.indexOf(',', fourthComma + 1);
+
+      String sender =
+          incoming.substring(5, firstComma);
+
+      String payload =
+          incoming.substring(secondComma + 1, thirdComma);
+
+      String rssi =
+          incoming.substring(thirdComma + 1, fourthComma);
+
+      // Only first SNR argument
+      String snr;
+
+      if (fifthComma == -1) {
+        snr = incoming.substring(fourthComma + 1);
+      } else {
+        snr = incoming.substring(fourthComma + 1, fifthComma);
+      }
+
+      // Save values for webpage
+      latestSender = sender;
+      latestPayload = payload;
+      latestRSSI = rssi;
+      latestSNR = snr;
+
+      // Serial output
+      Serial.println("------ PACKET ------");
+
+    
+      Serial.print("CO2: ");
+      Serial.println(snr);
+
+      Serial.println("--------------------");
+    }
+  }
+}
