@@ -135,7 +135,7 @@ h1 {
 
   html += latestSNR;
 
-  html += R"rawliteral( dB</div>
+  html += R"rawliteral( </div>
 
 </div>
 )rawliteral";
